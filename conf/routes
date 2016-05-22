@@ -1,0 +1,25 @@
+# Routes
+# This file defines all application routes (Higher priority routes first)
+# ~~~~
+
+# Home page
+GET        /                        controllers.Application.index
+GET        /github                  controllers.Application.github
+GET        /facebook                controllers.Application.facebook
+GET        /google                  controllers.Application.google
+
+# Map static resources from the /public folder to the /assets URL path
+GET        /assets/*file            controllers.Assets.at(path="/public", file)
+
+# OAuth2 Stuff
+GET        /_oauth-callback         util.OAuth2.callback(code: Option[String] ?= None, state: Option[String] ?= None)
+GET        /_oauth-success          util.OAuth2.success
+
+# FB Stuff
+GET        /_fb-callback            util.Facebook.callback(code: Option[String] ?= None, state: Option[String] ?= None)
+GET        /_fb-success             util.Facebook.success
+
+# Google Stuff
+GET        /_google-callback        util.Google.callback(code: Option[String] ?= None, state: Option[String] ?= None)
+GET        /_google-success         util.Google.success
+
