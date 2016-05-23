@@ -11,7 +11,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 @Singleton
-class OAuth2Util @Inject() (configuration: Configuration, wsClient: WSClient) {
+class GithubUtil @Inject()(configuration: Configuration, wsClient: WSClient) {
   lazy val githubAuthId = configuration.getString("github.client.id").get
   lazy val githubAuthSecret = configuration.getString("github.client.secret").get
 
@@ -36,7 +36,7 @@ class OAuth2Util @Inject() (configuration: Configuration, wsClient: WSClient) {
   }
 }
 
-class OAuth2 @Inject() (oauth2: OAuth2Util, wsClient: WSClient) extends Controller {
+class Github @Inject()(oauth2: GithubUtil, wsClient: WSClient) extends Controller {
 
   def callback(codeOpt: Option[String] = None, stateOpt: Option[String] = None) = Action.async { implicit request =>
     (for {
@@ -46,7 +46,7 @@ class OAuth2 @Inject() (oauth2: OAuth2Util, wsClient: WSClient) extends Controll
     } yield {
       if (state == oauthState) {
         oauth2.getToken(code).map { accessToken =>
-          Redirect(util.routes.OAuth2.success()).withSession("oauth-token" -> accessToken)
+          Redirect(util.routes.Github.success()).withSession("oauth-token" -> accessToken)
         }.recover {
           case ex: IllegalStateException => Unauthorized(ex.getMessage)
         }

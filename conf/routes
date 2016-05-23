@@ -12,8 +12,8 @@ GET        /google                  controllers.Application.google
 GET        /assets/*file            controllers.Assets.at(path="/public", file)
 
 # OAuth2 Stuff
-GET        /_oauth-callback         util.OAuth2.callback(code: Option[String] ?= None, state: Option[String] ?= None)
-GET        /_oauth-success          util.OAuth2.success
+GET        /_oauth-callback         util.Github.callback(code: Option[String] ?= None, state: Option[String] ?= None)
+GET        /_oauth-success          util.Github.success
 
 # FB Stuff
 GET        /_fb-callback            util.Facebook.callback(code: Option[String] ?= None, state: Option[String] ?= None)

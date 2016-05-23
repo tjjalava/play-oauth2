@@ -7,5 +7,6 @@ lazy val root = (project in file(".")).enablePlugins(PlayScala)
 scalaVersion := "2.11.8"
 
 libraryDependencies ++= Seq(
-  ws
+  ws,
+  "com.netaporter" %% "scala-uri" % "0.4.14"
 )

@@ -7,14 +7,14 @@ import play.api._
 import play.api.mvc._
 import util._
 
-class Application @Inject() (oauth2: OAuth2Util, fbauth: FacebookUtil, googleAuth: GoogleUtil) extends Controller {
+class Application @Inject() (oauth2: GithubUtil, fbauth: FacebookUtil, googleAuth: GoogleUtil) extends Controller {
 
   def index = Action { implicit request =>
     Ok(views.html.index("Your new application is ready."))
   }
 
   def github = Action { implicit request =>
-    val callbackUrl = util.routes.OAuth2.callback().absoluteURL()
+    val callbackUrl = util.routes.Github.callback().absoluteURL()
     val scope = "user:email"   // github scope - request repo access
     val state = UUID.randomUUID().toString  // random confirmation string
     val redirectUrl = oauth2.getAuthorizationUrl(callbackUrl, scope, state)
