@@ -19,9 +19,9 @@ trait OAuth2Controller extends Controller {
 
   protected def getState:String = UUID.randomUUID().toString
 
-  def redirectToProvider(callbackUrl:String, provider:OAuth2, scope:Option[String] = None):Result = {
+  def redirectToProvider(callbackUrl:String, provider:OAuth2):Result = {
     val state = getState
-    Redirect(provider.getAuthorizationUrl(callbackUrl, state, scope.getOrElse(provider.authScope))).withSession(OAuth2.stateKey -> state)
+    Redirect(provider.getAuthorizationUrl(callbackUrl, state)).withSession(OAuth2.stateKey -> state)
   }
 }
 
@@ -31,42 +31,42 @@ object OAuth2 {
 
 trait OAuth2 {
 
+  protected val wsClient:WSClient
+
   protected def getConf(path:String, configuration: Configuration) =
     configuration.getString(s"play.oauth2.$path").getOrElse(throw configuration.globalError(s"Path $path not found in configuration"))
 
   protected def authId:String
   protected def authSecret:String
-  protected def providerURL:String
+  protected def authUri:String
+  protected def authScope:String
+  protected def tokenUri:String
 
-  def authScope:String
-  def getAuthorizationUrl(redirectUri: String, state: String, scope:String = authScope): String =
-    providerURL & ("client_id" -> authId) & ("redirect_uri" -> redirectUri) & ("scope" -> scope) & ("state" -> state)
+  def getAuthorizationUrl(redirectUri: String, state: String): String =
+    authUri & ("client_id" -> authId) & ("redirect_uri" -> redirectUri) & ("scope" -> authScope) & ("state" -> state)
 
   def handleCallback(code: Option[String], state: Option[String], successRoute:Call)
                     (implicit request:RequestHeader, ec:ExecutionContext):Future[Result]
-}
 
-class GoogleAuth @Inject() (configuration: Configuration, wsClient: WSClient) extends OAuth2 {
-  import Results._
-
-  override protected def authId: String = getConf("google.client-id", configuration)
-  override protected def authSecret: String = getConf("google.client-secret", configuration)
-  override protected def providerURL: String = getConf("google.redirect-url", configuration)
-  override def authScope: String = "https://www.googleapis.com/auth/userinfo.email"
-
-  private def getToken(code:String, redirect:String)(implicit ec:ExecutionContext):Future[String] = {
-    val tokenResponse = wsClient.url("https://www.googleapis.com/oauth2/v3/token")
-      .withQueryString("client_id" -> authId,
-        "client_secret" -> authSecret,
-        "code" -> code,
-        "redirect_uri" -> redirect,
-        "grant_type" -> "authorization_code"
-      ).withHeaders(HeaderNames.ACCEPT -> MimeTypes.JSON).post(Results.EmptyContent())
-
-    tokenResponse.map { response =>
+  protected def getToken(code:String, params:Map[String, String] = Map.empty)(implicit ec:ExecutionContext):Future[String] =
+    wsClient.url(
+      (tokenUri ? ("client_id" -> authId) &
+        ("client_secret" -> authSecret) &
+        ("code" -> code)
+      ).addParams(params.toSeq)
+    ).withHeaders(HeaderNames.ACCEPT -> MimeTypes.JSON).post(Results.EmptyContent).map { response =>
       (response.json \ "access_token").asOpt[String].getOrElse(throw new IllegalStateException("Sod off!"))
     }
-  }
+}
+
+class GoogleAuth @Inject() (configuration: Configuration, override protected val wsClient: WSClient) extends OAuth2 {
+  import Results._
+
+  override protected val authId: String = getConf("google.client-id", configuration)
+  override protected val authSecret: String = getConf("google.client-secret", configuration)
+  override protected val authUri: String = getConf("google.auth-uri", configuration) ? ("response_type" -> "code")
+  override protected val authScope: String = getConf("google.auth-scope", configuration)
+  override protected val tokenUri = getConf("google.token-uri", configuration)
 
   override def handleCallback(code: Option[String], state: Option[String], successRoute: Call)
                              (implicit request: RequestHeader, ec:ExecutionContext): Future[Result] =
@@ -76,8 +76,12 @@ class GoogleAuth @Inject() (configuration: Configuration, wsClient: WSClient) ex
       oauthState <- request.session.get(OAuth2.stateKey)
     } yield {
       if (state == oauthState) {
-        getToken(code, util.routes.Google.callback().absoluteURL()).map { accessToken =>
-          Redirect(util.routes.Google.success()).withSession("google-token" -> accessToken)
+        val params = Map(
+          "redirect_uri" -> "http://localhost:3000/oauth2callback",
+          "grant_type" -> "authorization_code"
+        )
+        getToken(code, params).map { accessToken =>
+          Redirect(successRoute).withSession("access-token" -> accessToken)
         }.recover {
           case ex: IllegalStateException => Unauthorized(ex.getMessage)
         }
