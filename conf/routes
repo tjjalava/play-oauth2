@@ -8,6 +8,11 @@ GET        /github                  controllers.Application.github
 GET        /facebook                controllers.Application.facebook
 GET        /google                  controllers.Application.google
 
+GET        /oauth2callback          controllers.Application.oauth2Callback(code: Option[String] ?= None, state: Option[String] ?= None)
+
+# Google
+GET        /google-success          controllers.Application.googleSuccess
+
 # Map static resources from the /public folder to the /assets URL path
 GET        /assets/*file            controllers.Assets.at(path="/public", file)
 
